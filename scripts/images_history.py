@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 faverate_tab_name = "Favorites"
-tabs_list = ["txt2img", "img2img", "Extras", faverate_tab_name, "Others"]
+tabs_list = ["txt2img", "img2img", "txt2img-grids", "img2img-grids", "Extras", faverate_tab_name, "Others"] #txt2img-grids and img2img-grids added by HaylockGrant
 num_of_imgs_per_page = 0
 loads_files_num = 0
 path_recorder_filename = os.path.join(scripts.basedir(), "path_recorder.txt")
@@ -65,8 +65,9 @@ def delete_image(delete_num, name, filenames, image_index, visible_num):
                     if visible_num == image_index:
                         new_file_list.append(name)
                         i += 1
-                        continue                    
-                    print(f"Delete file {name}")
+                        continue
+                    if opts.images_delete_message:
+                        print(f"Deleting file {name}")
                     os.remove(name)
                     visible_num -= 1
                     txt_file = os.path.splitext(name)[0] + ".txt"
@@ -80,6 +81,8 @@ def delete_image(delete_num, name, filenames, image_index, visible_num):
     return new_file_list, 1, visible_num
 
 def traverse_all_files(curr_path, image_list) -> List[Tuple[str, os.stat_result]]:
+    if curr_path == "":
+        return image_list
     f_list = [(os.path.join(curr_path, entry.name), entry.stat()) for entry in os.scandir(curr_path)]
     for f_info in f_list:
         fname, fstat = f_info
@@ -155,9 +158,10 @@ def change_dir(img_dir, path_recorder, load_switch, img_path_history):
             path_recorder.append(img_dir)
         if os.path.exists(path_recorder_filename):
             os.remove(path_recorder_filename)
-        with open(path_recorder_filename, "a") as f:
-            for x in path_recorder:
-                f.write(x + "\n")
+        if opts.images_record_paths:
+            with open(path_recorder_filename, "a") as f:
+                for x in path_recorder:
+                    f.write(x + "\n")
         return "", gr.update(visible=True), gr.Dropdown.update(choices=path_recorder, value=img_dir), path_recorder, img_dir
     else:
         return warning, gr.update(visible=False), img_path_history, path_recorder, load_switch
@@ -169,6 +173,10 @@ def create_tab(tabname):
         dir_name = opts.outdir_txt2img_samples
     elif tabname == "img2img":
         dir_name = opts.outdir_img2img_samples
+    elif tabname == "txt2img-grids":    #added by HaylockGrant to add a new tab for grid images
+        dir_name = opts.outdir_txt2img_grids
+    elif tabname == "img2img-grids":    #added by HaylockGrant to add a new tab for grid images
+        dir_name = opts.outdir_img2img_grids
     elif tabname == "Extras":
         dir_name = opts.outdir_extras_samples
     elif tabname == faverate_tab_name:
@@ -284,7 +292,7 @@ def create_tab(tabname):
     hidden.change(fn=modules.extras.run_pnginfo, inputs=[hidden], outputs=[info1, img_file_info, info2])
 
     try:
-        modules.generation_parameters_copypaste.bind_buttons(send_to_buttons, img_file_name, img_file_info)
+        modules.generation_parameters_copypaste.bind_buttons(send_to_buttons, hidden, img_file_info)
     except:
         pass
 
@@ -306,6 +314,8 @@ def on_ui_tabs():
 def on_ui_settings():
     section = ('images-history', "Images Browser")
     shared.opts.add_option("images_history_preload", shared.OptionInfo(False, "Preload images at startup", section=section))
+    shared.opts.add_option("images_record_paths", shared.OptionInfo(True, "Record accessable images directories", section=section))
+    shared.opts.add_option("images_delete_message", shared.OptionInfo(True, "Print image deletion messages to the console", section=section))
     shared.opts.add_option("images_history_page_columns", shared.OptionInfo(6, "Number of columns on the page", section=section))
     shared.opts.add_option("images_history_page_rows", shared.OptionInfo(6, "Number of rows on the page", section=section))
     shared.opts.add_option("images_history_pages_perload", shared.OptionInfo(20, "Minimum number of pages per load", section=section))
